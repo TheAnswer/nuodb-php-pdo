@@ -858,7 +858,7 @@ static int pdo_nuodb_handle_factory(pdo_dbh_t * dbh, zval * driver_options TSRML
     H->einfo.errmsg = NULL;
     H->default_txn_isolation_level = PDO_NUODB_TXN_CONSISTENT_READ;
 
-    php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, vars, 2);
+    php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, vars, 3);
 
     options[0].option = "database";
     options[0].extra = (void *) vars[0].optval;
@@ -932,8 +932,8 @@ static int pdo_nuodb_handle_factory(pdo_dbh_t * dbh, zval * driver_options TSRML
     optionsArray.count = PDO_NUODB_OPTIONS_ARR_SIZE;
     optionsArray.array = options;
 
-    PDO_DBG_LEVEL_FMT(PDO_NUODB_LOG_SQL, "dbh=%p : pdo_nuodb_handle_factory : database=%s user=%s schema=%s",
-                      dbh, options[0].extra, options[1].extra, options[3].extra);
+    PDO_DBG_LEVEL_FMT(PDO_NUODB_LOG_SQL, "dbh=%p : pdo_nuodb_handle_factory : database=%s user=%s schema=%s LBTag=%s",
+                      dbh, options[0].extra, options[1].extra, options[3].extra, options[4].extra ? options[4].extra : "");
 
     def_txn_iso_level_init_string = PDO_NUODB_G(default_txn_isolation);
     if (def_txn_iso_level_init_string != NULL) {
