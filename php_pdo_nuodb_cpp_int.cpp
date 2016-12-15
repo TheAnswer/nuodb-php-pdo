@@ -355,6 +355,9 @@ NuoDB_Connection * PdoNuoDbHandle::createConnection()
     _con = NuoDB_Connection_create();
     options = NuoDB_Options_create();
     options->add(options,(const char *)_opts->array[3].option, (const char *)_opts->array[3].extra);
+    if (_opts->array[4].extra != NULL) {
+      options->add(options,(const char *)_opts->array[4].option, (const char *)_opts->array[4].extra);
+    }
     status = _con->openDatabase(_con,
                        (const char *)_opts->array[0].extra, /* connection string */
                        (const char *)_opts->array[1].extra, /* username */

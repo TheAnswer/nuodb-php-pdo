@@ -75,6 +75,7 @@ char const * const NUODB_OPT_USER = "user";
 char const * const NUODB_OPT_PASSWORD = "password";
 char const * const NUODB_OPT_SCHEMA = "schema";
 char const * const NUODB_OPT_IDENTIFIERS = "identifiers";
+char const * const NUODB_OPT_LBTAG = "LBTag";
 
 static int nuodb_alloc_prepare_stmt(pdo_dbh_t *, pdo_stmt_t *, const char *, long, PdoNuoDbStatement ** nuodb_stmt TSRMLS_DC);
 
@@ -821,7 +822,8 @@ static int pdo_nuodb_handle_factory(pdo_dbh_t * dbh, zval * driver_options TSRML
     struct pdo_data_src_parser vars[] =
         {
             { NUODB_OPT_DATABASE, NULL, 0 }, /* "database" */
-            { NUODB_OPT_SCHEMA,  NULL,  0 }  /* "schema" */
+            { NUODB_OPT_SCHEMA,  NULL,  0 },  /* "schema" */
+	    { NUODB_OPT_LBTAG, NULL, 0}
         };
 
     struct nuodb_iso_levels_t {
@@ -923,6 +925,9 @@ static int pdo_nuodb_handle_factory(pdo_dbh_t * dbh, zval * driver_options TSRML
     }
     options[3].option = "schema";
     options[3].extra = (vars[1].optval == NULL) ? "USER" : vars[1].optval;
+
+    options[4].option = "LBTag";
+    options[4].extra = vars[2].optval;
 
     optionsArray.count = PDO_NUODB_OPTIONS_ARR_SIZE;
     optionsArray.array = options;
