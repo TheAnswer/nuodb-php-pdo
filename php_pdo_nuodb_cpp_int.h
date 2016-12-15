@@ -73,7 +73,7 @@ private:
     int _driverMinorVersion;
 
     SqlOptionArray * _opts;
-    SqlOption _opt_arr[4];
+    SqlOption _opt_arr[PDO_NUODB_OPTIONS_ARR_SIZE];
     pdo_nuodb_error_info einfo; /* NuoDB error information */
     pdo_error_type sqlstate;
     PdoNuoDbStatement * _last_stmt; /* will be NULL if the last
