@@ -79,6 +79,8 @@ char const * const NUODB_OPT_LBTAG = "LBTag";
 
 static int nuodb_alloc_prepare_stmt(pdo_dbh_t *, pdo_stmt_t *, const char *, long, PdoNuoDbStatement ** nuodb_stmt TSRMLS_DC);
 
+ZEND_API ZEND_COLD zend_object *zend_throw_exception_ex(zend_class_entry *exception_ce, zend_long code, const char *format, ...);
+
 /* {{{ sqlcode_to_sqlstate_t
  *
  * Workaround DB-4112.  NuoDB C++ exceptions do not currently
@@ -291,8 +293,8 @@ static int nuodb_handle_closer(pdo_dbh_t * dbh TSRMLS_DC)
  * Called by PDO to prepare an SQL query
  */
 static int nuodb_handle_preparer(pdo_dbh_t * dbh, const char * sql,
-                                 long sql_len, pdo_stmt_t * stmt,
-                                 zval * driver_options TSRMLS_DC)
+                                 size_t sql_len, pdo_stmt_t * stmt,
+                                 zval* driver_options TSRMLS_DC)
 {
     int ret = 0;
     pdo_nuodb_db_handle * H = (pdo_nuodb_db_handle *)dbh->driver_data;
@@ -302,14 +304,14 @@ static int nuodb_handle_preparer(pdo_dbh_t * dbh, const char * sql,
     int count_input_params = 0;
     int index = 0;
     char rewritten = 0;
-    HashPosition pos;
-    int keytype;
-    char *strindex;
-    int strindexlen;
-    long intindex = -1;
+    //HashPosition pos;
+    //int keytype;
+    //zend_string *strindex;
+    //int strindexlen;
+    //zend_long intindex = -1;
     long max_index = 0;
     char *nsql = NULL;
-    int nsql_len = 0;
+    size_t nsql_len = 0;
     char *pData;
 
     PDO_DBG_ENTER("nuodb_handle_preparer", dbh);
@@ -363,17 +365,18 @@ static int nuodb_handle_preparer(pdo_dbh_t * dbh, const char * sql,
 
     if (stmt->bound_param_map != NULL) /* find the largest int key */
     {
-        zend_hash_internal_pointer_reset_ex(stmt->bound_param_map, &pos);
-        while (HASH_KEY_NON_EXISTANT != (keytype = zend_hash_get_current_key_ex(
-                                             stmt->bound_param_map, &strindex, &strindexlen, &intindex, 0, &pos)))
-        {
-            if (HASH_KEY_IS_LONG == keytype) {
-                if (intindex > max_index) {
-                    max_index = intindex;
-                }
+        zval *val = NULL;
+        zend_string* keytry = NULL;
+        zend_long search_key = -1;
+        ZEND_HASH_FOREACH_KEY_VAL(stmt->bound_param_map, search_key, keytry, val) {
+            PDO_DBG_INF_FMT("dbh=%p : search_key:%d keytry:%s val:%p",
+                                    stmt->dbh,  search_key, keytry ? ZSTR_VAL(keytry) : NULL, val);
+
+            if (keytry == NULL && search_key > max_index) {
+                        max_index = search_key;
             }
-            zend_hash_move_forward_ex(stmt->bound_param_map, &pos);
-        }
+        } ZEND_HASH_FOREACH_END();
+
         S->qty_input_params = max_index + 1;
     }
 
@@ -410,7 +413,7 @@ static void pdo_dbh_t_set_in_txn(void *dbh_opaque, unsigned in_txn)
  * set
  */
 static long nuodb_handle_doer(pdo_dbh_t * dbh, const char * sql,
-                              long sql_len TSRMLS_DC)
+                              size_t sql_len TSRMLS_DC)
 {
     pdo_nuodb_db_handle * H = NULL;
     long res;
@@ -438,8 +441,8 @@ static long nuodb_handle_doer(pdo_dbh_t * dbh, const char * sql,
  * that are copied into SQL
  */
 static int nuodb_handle_quoter(pdo_dbh_t * dbh, const char * unquoted,
-                               int unquotedlen, char ** quoted,
-                               int * quotedlen,
+                               size_t unquotedlen, char ** quoted,
+                               size_t * quotedlen,
                                enum pdo_param_type paramtype TSRMLS_DC)
 {
     int qcount = 0;
@@ -614,6 +617,9 @@ static int nuodb_alloc_prepare_stmt(pdo_dbh_t * dbh, pdo_stmt_t * pdo_stmt,
         *c++ = sql[l];
     }
 
+    PDO_DBG_INF_FMT("dbh=%p : nuodb_alloc_prepare_stmt: newsql S=%s", dbh, new_sql);
+
+
     /* prepare the statement */
     *nuodb_stmt = pdo_nuodb_db_handle_create_statement(H, pdo_stmt, new_sql);
     PDO_DBG_INF_FMT("dbh=%p : nuodb_alloc_prepare_stmt: S=%p sql=%.*s", dbh, pdo_stmt->driver_data, sql_len, sql);
@@ -641,7 +647,7 @@ static int nuodb_alloc_prepare_stmt(pdo_dbh_t * dbh, pdo_stmt_t * pdo_stmt,
  * Called by PDO to get the last insert id
  */
 static char *nuodb_handle_last_id(pdo_dbh_t *dbh, const char *name,
-                                  unsigned int *len TSRMLS_DC)
+                                  size_t *len TSRMLS_DC)
 {
     int c = 0;
     pdo_nuodb_db_handle * H = (pdo_nuodb_db_handle *)dbh->driver_data;
@@ -662,8 +668,8 @@ static char *nuodb_handle_last_id(pdo_dbh_t *dbh, const char *name,
 /* {{{ nuodb_handle_set_attribute
  * Called by PDO to set a driver-specific dbh attribute
  */
-static int nuodb_handle_set_attribute(pdo_dbh_t * dbh, long attr,
-                                      zval * val TSRMLS_DC)
+static int nuodb_handle_set_attribute(pdo_dbh_t * dbh, zend_long attr,
+                                      zval* val TSRMLS_DC)
 {
     pdo_nuodb_db_handle * H = NULL;
     PDO_DBG_ENTER("nuodb_handle_set_attribute", dbh);
@@ -674,10 +680,12 @@ static int nuodb_handle_set_attribute(pdo_dbh_t * dbh, long attr,
         case PDO_ATTR_AUTOCOMMIT:
             convert_to_boolean(val);
 
+            int zbval = zval_is_true(val);//(Z_TYPE_P(val) == IS_TRUE);
+
             /* ignore if the new value equals the old one */
-            if (dbh->auto_commit ^ Z_BVAL_P(val)) {
+            if (dbh->auto_commit ^ zbval) {
                 if (dbh->in_txn) {
-                    if (Z_BVAL_P(val)) {
+                    if (zbval) {
                         /* turning on auto_commit with an open transaction is illegal, because
                            we won't know what to do with it */
                         _record_error_formatted(dbh, NULL, __FILE__, __LINE__, "HY011", PDO_NUODB_SQLCODE_INTERNAL_ERROR, "Cannot enable auto-commit while a transaction is already open");
@@ -690,14 +698,17 @@ static int nuodb_handle_set_attribute(pdo_dbh_t * dbh, long attr,
                         dbh->in_txn = 0;
                     }
                 }
-                dbh->auto_commit = Z_BVAL_P(val);
+                dbh->auto_commit = zbval;
                 pdo_nuodb_db_handle_set_auto_commit(H, dbh->auto_commit);
             }
             PDO_DBG_RETURN(1, dbh);
 
         case PDO_ATTR_FETCH_TABLE_NAMES:
             convert_to_boolean(val);
-            H->fetch_table_names = Z_BVAL_P(val);
+            //int zbval = (Z_TYPE_P(item) == IS_TRUE);
+
+            H->fetch_table_names = zval_is_true(val);//(Z_TYPE_P(val) == IS_TRUE);
+
             PDO_DBG_RETURN(1, dbh);
 
         case PDO_NUODB_ATTR_TXN_ISOLATION_LEVEL:
@@ -734,7 +745,7 @@ static int nuodb_handle_get_attribute(pdo_dbh_t * dbh, long attr,
             return 1;
 
         case PDO_ATTR_CLIENT_VERSION:
-            ZVAL_STRING(val,"NuoDB 2.3.1",1);
+            ZVAL_STRING(val,"NuoDB 3.0.0");
             return 1;
 
         case PDO_ATTR_SERVER_VERSION:
@@ -746,7 +757,7 @@ static int nuodb_handle_get_attribute(pdo_dbh_t * dbh, long attr,
             if ((server_name == NULL) || (server_version == NULL)) return 1;
             info = emalloc(strlen(server_name) + strlen(server_version) + 2);
             sprintf(info, "%s %s", server_name, server_version);
-            ZVAL_STRING(val, info, 1);
+            ZVAL_STRING(val, info);
             efree(info);
             return 1;
         }
@@ -784,7 +795,7 @@ static int pdo_nuodb_fetch_error_func(pdo_dbh_t * dbh, pdo_stmt_t * stmt, zval *
     }
     if (einfo->errcode) {
         add_next_index_long(info, einfo->errcode);
-        add_next_index_string(info, einfo->errmsg, 1);
+        add_next_index_string(info, einfo->errmsg);
     }
     PDO_DBG_RETURN(1, dbh);
 }
@@ -817,7 +828,7 @@ static struct pdo_dbh_methods nuodb_methods =
  *
  * The driver-specific PDO handle constructor
  */
-static int pdo_nuodb_handle_factory(pdo_dbh_t * dbh, zval * driver_options TSRMLS_DC)
+static int pdo_nuodb_handle_factory(pdo_dbh_t * dbh, zval* driver_options TSRMLS_DC)
 {
     struct pdo_data_src_parser vars[] =
         {

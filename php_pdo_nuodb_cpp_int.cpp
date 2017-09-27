@@ -82,7 +82,7 @@ PdoNuoDbGeneratedKeys::~PdoNuoDbGeneratedKeys()
 
     for (int i=0; i < _qty; i++) {
         if (_keys[i].columnName != NULL) {
-            delete _keys[i].columnName;
+            free(_keys[i].columnName);
         }
     }
     delete [] _keys;
@@ -1022,7 +1022,7 @@ void PdoNuoDbStatement::getDate(size_t column, int64_t **date_val)
 }
 
 
-void PdoNuoDbStatement::getBlob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size, int allow_failure ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC))
+void PdoNuoDbStatement::getBlob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size))
 {
         int status = 0;
     NuoDB_Lob *blob = NULL;
@@ -1040,7 +1040,7 @@ void PdoNuoDbStatement::getBlob(size_t column, char ** ptr, unsigned long * len,
     if ((*len) == 0) {
         *ptr = NULL;
     } else {
-        *ptr = (char *)(*erealloc)((void *)*ptr, *len+1, 0 ZEND_FILE_LINE_CC ZEND_FILE_LINE_EMPTY_CC);
+        *ptr = (char *)(*erealloc)((void *)*ptr, *len+1);
         memcpy(*ptr, blob->getData(blob), *len);
         (*ptr)[*len] = '\0';
     }
@@ -1049,7 +1049,7 @@ void PdoNuoDbStatement::getBlob(size_t column, char ** ptr, unsigned long * len,
 }
 
 
-void PdoNuoDbStatement::getClob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size, int allow_failure ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC))
+void PdoNuoDbStatement::getClob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size))
 {
         int status = 0;
     NuoDB_Lob *clob = NULL;
@@ -1067,7 +1067,7 @@ void PdoNuoDbStatement::getClob(size_t column, char ** ptr, unsigned long * len,
     if ((*len) == 0) {
         *ptr = NULL;
     } else {
-        *ptr = (char *)(*erealloc)((void *)*ptr, *len+1, 0 ZEND_FILE_LINE_CC ZEND_FILE_LINE_EMPTY_CC);
+        *ptr = (char *)(*erealloc)((void *)*ptr, *len+1);
         memcpy(*ptr, clob->getData(clob), *len);
         (*ptr)[*len] = '\0';
     }
@@ -1653,6 +1653,8 @@ extern "C" {
             if ((pdo_stmt->bound_param_map == NULL) ||
                 (S->qty_input_params != pdo_stmt->bound_params->nNumOfElements))
             {
+                PDO_DBG_INF_FMT("dbh=%p S->qty_input_params:%d nNumOfElements:%d", pdo_stmt->dbh, S->qty_input_params, pdo_stmt->bound_params->nNumOfElements);
+
                 nuodb_stmt->setEinfoErrcode(-12);
                 nuodb_stmt->setEinfoErrmsg("number of bound variables does not match number of tokens");
                 nuodb_stmt->setEinfoFile(__FILE__);
@@ -1873,7 +1875,7 @@ extern "C" {
     }
 
 
-    int pdo_nuodb_stmt_set_blob(pdo_nuodb_stmt *S, int paramno, char *blob_val, int len)
+    int pdo_nuodb_stmt_set_blob(pdo_nuodb_stmt *S, zend_long paramno, char *blob_val, int len)
     {
         PdoNuoDbStatement *nuodb_stmt = (PdoNuoDbStatement *) S->stmt;
 
@@ -2059,7 +2061,7 @@ extern "C" {
 
 
     void pdo_nuodb_stmt_get_blob(pdo_nuodb_stmt *S, int colno, char ** ptr, unsigned long * len,
-                                 void * (*erealloc)(void *ptr, size_t size, int allow_failure ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC))
+                                 void * (*erealloc)(void *ptr, size_t size))
     {
 
         PdoNuoDbStatement *nuodb_stmt = (PdoNuoDbStatement *) S->stmt;
@@ -2081,7 +2083,7 @@ extern "C" {
 
 
     void pdo_nuodb_stmt_get_clob(pdo_nuodb_stmt *S, int colno, char ** ptr, unsigned long * len,
-                                 void * (*erealloc)(void *ptr, size_t size, int allow_failure ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC))
+                                 void * (*erealloc)(void *ptr, size_t size))
     {
         PdoNuoDbStatement *nuodb_stmt = (PdoNuoDbStatement *) S->stmt;
 

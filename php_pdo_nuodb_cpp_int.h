@@ -153,8 +153,8 @@ public:
     char const * getTimestamp(size_t column);
     void getDate(size_t column, int64_t **date_val);
     void getTime(size_t column, int64_t **time_val);
-    void getBlob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size, int ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC));
-    void getClob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size, int ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC));
+    void getBlob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size));
+    void getClob(size_t column, char ** ptr, unsigned long * len, void * (*erealloc)(void *ptr, size_t size));
     size_t getNumberOfParameters();
     int getGeneratedKeyLastId(const char *name);
 
